@@ -20,6 +20,6 @@ public class IshiharaTest {
     private LocalDateTime dateEnded;
     private String testUrl;
 
-    @OneToMany(mappedBy = "test", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<TestQuestion> questions;
 }
