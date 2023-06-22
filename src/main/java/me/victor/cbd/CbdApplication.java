@@ -9,5 +9,4 @@ public class CbdApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(CbdApplication.class, args);
 	}
-
 }

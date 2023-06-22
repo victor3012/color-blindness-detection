@@ -11,13 +11,13 @@ import java.util.List;
 @Data
 public class IshiharaTest {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     @Column(nullable = false)
     private LocalDateTime dateStarted;
-    @Column(nullable = false)
+
     private LocalDateTime dateEnded;
-    @Column(nullable = false)
     private String testUrl;
 
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL)
