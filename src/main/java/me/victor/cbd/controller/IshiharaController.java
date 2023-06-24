@@ -8,6 +8,7 @@ import me.victor.cbd.service.IshiharaTestService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController("/")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class IshiharaController {
     private final IshiharaTestService service;
 
