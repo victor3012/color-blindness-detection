@@ -1,16 +1,11 @@
 package me.victor.cbd.controller;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import me.victor.cbd.exception.DataFormatException;
 import me.victor.cbd.model.model.IshiharaCompletedTestData;
 import me.victor.cbd.model.model.IshiharaTestData;
 import me.victor.cbd.model.model.TestURlData;
 import me.victor.cbd.service.IshiharaTestService;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 
 @RestController("/")
 public class IshiharaController {
