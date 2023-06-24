@@ -1,9 +1,16 @@
 package me.victor.cbd.controller;
 
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import me.victor.cbd.exception.DataFormatException;
+import me.victor.cbd.model.model.IshiharaCompletedTestData;
 import me.victor.cbd.model.model.IshiharaTestData;
+import me.victor.cbd.model.model.TestURlData;
 import me.victor.cbd.service.IshiharaTestService;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 @RestController("/")
 public class IshiharaController {
@@ -19,16 +26,16 @@ public class IshiharaController {
     }
 
     @PutMapping("ishihara-tests/{id}")
-    public void submitAnswers(@PathVariable Integer id, @RequestBody IshiharaTestData testData) {
+    public TestURlData submitAnswers(@PathVariable Integer id, @RequestBody IshiharaTestData testData) {
         if (id == null || id <= 0) {
             throw new DataFormatException("Invalid id");
         }
 
-        this.service.submitAnswers(id, testData);
+        return new TestURlData(this.service.submitAnswers(id, testData));
     }
 
     @GetMapping("results/{resultUrl}")
-    public void getTestResults(@PathVariable String resultUrl) {
-
+    public IshiharaCompletedTestData getTestResults(@PathVariable String resultUrl) {
+        return this.service.getTestResult(resultUrl);
     }
 }

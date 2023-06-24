@@ -5,6 +5,8 @@ import me.victor.cbd.exception.ResourceNotFoundException;
 import me.victor.cbd.model.entity.IshiharaQuestion;
 import me.victor.cbd.model.entity.IshiharaTest;
 import me.victor.cbd.model.entity.TestQuestion;
+import me.victor.cbd.model.enumration.BlindnessType;
+import me.victor.cbd.model.model.IshiharaCompletedTestData;
 import me.victor.cbd.model.model.IshiharaTestData;
 import me.victor.cbd.model.model.QuestionData;
 import me.victor.cbd.repository.IshiharaQuestionRepository;
@@ -15,10 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -62,14 +61,14 @@ public class IshiharaTestService {
         IshiharaTest retrievedTest = this.testRepository.findByDateStarted(dateCreated);
 
         return new IshiharaTestData(retrievedTest.getId(),
+                dateCreated,
                 retrievedTest.getQuestions()
                         .stream()
                         .map(question -> new QuestionData(question.getQuestion().getImageUrl(), null, null))
-                        .collect(Collectors.toList()),
-                dateCreated);
+                        .toList());
     }
 
-    public void submitAnswers(Integer id, IshiharaTestData testData) {
+    public String submitAnswers(Integer id, IshiharaTestData testData) {
         Optional<IshiharaTest> optTest = this.testRepository.findById(id);
 
         if (optTest.isEmpty()) {
@@ -84,6 +83,10 @@ public class IshiharaTestService {
 
         IshiharaTest test = optTest.get();
 
+        if (!Objects.isNull(test.getTestUrl())) {
+            throw new DataFormatException("Test #%d is already completed".formatted(test.getId()));
+        }
+
         if (answers.size() != test.getQuestions().size()) {
             throw new DataFormatException("Required exactly %d answers".formatted(test.getQuestions().size()));
         }
@@ -93,19 +96,86 @@ public class IshiharaTestService {
             question.setUserGuess(answers.get(i));
         }
 
+        test.setTestUrl(generateLink());
+        test.setDateEnded(LocalDateTime.now(ZoneOffset.UTC));
+
         this.testRepository.save(test);
-        // localhost:8080/ishihara-tests/pokDWAdk
+
+        return test.getTestUrl();
     }
 
-    private String generateLink() {
-        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    public IshiharaCompletedTestData getTestResult(String testUrl) {
+        IshiharaTest test = this.testRepository.findByTestUrl(testUrl)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid test url"));
 
-        return null;
+        test.setQuestions(test.getQuestions()
+                .stream()
+                .sorted(Comparator.comparingInt(TestQuestion::getId))
+                .toList()
+        );
+
+        int totalQuestionsCount = test.getQuestions().size();
+
+        int correctQuestionsCount = (int) test.getQuestions()
+                .stream()
+                .filter(x -> x.getUserGuess() == x.getQuestion().getNumber())
+                .count();
+
+        int wrongQuestionsCount = totalQuestionsCount - correctQuestionsCount;
+
+        double accuracy = correctQuestionsCount * 1.0 / totalQuestionsCount;
+
+        Map<String, Double> blindnessTypeAccuracy = getBlindnessTypeAccuracy(test.getQuestions());
+
+        return new IshiharaCompletedTestData(test.getId(), test.getTestUrl(), test.getDateStarted(),
+                test.getDateEnded(), totalQuestionsCount, correctQuestionsCount, wrongQuestionsCount,
+                accuracy, blindnessTypeAccuracy,
+                test.getQuestions()
+                        .stream()
+                        .map(question -> new QuestionData(question.getQuestion().getImageUrl(),
+                                question.getUserGuess(), question.getQuestion().getNumber()))
+                        .toList());
     }
 
     private List<IshiharaQuestion> getShuffledQuestions(int maxAmount) {
         List<IshiharaQuestion> questions = this.questionRepository.findAll();
         Collections.shuffle(questions);
         return questions.stream().limit(maxAmount).collect(Collectors.toList());
+    }
+
+    private String generateLink() {
+        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        Random random = new Random();
+
+        StringBuilder link;
+
+        do {
+            link = new StringBuilder(this.generatedLinkLength);
+
+            for (int i = 0; i < this.generatedLinkLength; i++) {
+                link.append(letters.charAt(random.nextInt(letters.length())));
+            }
+        } while (this.testRepository.findByTestUrl(link.toString()).isPresent());
+
+        return link.toString();
+    }
+
+    private Map<String, Double> getBlindnessTypeAccuracy(List<TestQuestion> questions) {
+        Map<String, Double> map = new HashMap<>();
+
+        for (BlindnessType type : BlindnessType.values()) {
+            List<TestQuestion> typeQuestions = questions.stream()
+                    .filter(x -> x.getQuestion().getColourBlindness() == type)
+                    .toList();
+
+            int totalQuestions = typeQuestions.size();
+            int correctQuestions = (int) typeQuestions.stream()
+                    .filter(x -> x.getUserGuess() == x.getQuestion().getNumber())
+                    .count();
+
+            map.put(type.toString(), correctQuestions * 1.0 / totalQuestions);
+        }
+
+        return map;
     }
 }
